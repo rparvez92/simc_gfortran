@@ -8,7 +8,7 @@ c     between the model used in simc and the model used to get the "central" ver
       implicit none
       include 'simulate.inc'
 
-      real*8 ebeamin,q2in, xin, zhadin, thpqin, Ain, Zin
+      real*8 ebeamin,q2in, xin, zhadin, thpqin, ptin, Ain, Zin
       real*8 peepiX, survivalprob,charge
       real*8 sigsemi
       real*8 dphi
@@ -17,9 +17,9 @@ c     between the model used in simc and the model used to get the "central" ver
       type(event_main):: main
       type(event):: vertex, vertex0
       
-      write(6,*) 'Enter beam energy (GeV), Q2, xbj, z, thetapq, A, Z,',
+      write(6,*) 'Enter beam energy (GeV), Q2, xbj, z, pT, A, Z,',
      >            ' pion charge, # of phi bins'
-      read(5,*) ebeamin,q2in,xin,zhadin,thpqin,Ain,Zin,charge,nphibin
+      read(5,*) ebeamin,q2in,xin,zhadin,ptin,Ain,Zin,charge,nphibin
 
       if(charge.gt.0.0) then
          doing_hplus=.true.
@@ -46,14 +46,16 @@ c electron stuff
       vertex%q = sqrt(vertex%Q2 + vertex%nu**2)
       vertex%xbj = xin
 
-c q-vector      
+c     q-vector
+      vertex%zhad=zhadin
+      vertex%p%P = sqrt((vertex%zhad*vertex%nu)**2-Mpi2)
+      vertex%theta_pq = asin(ptin/vertex%p%P)
+      thpqin=vertex%theta_pq*degrad
       vertex%uq%x = - vertex%e%P*vertex%ue%x / vertex%q
       vertex%uq%y = - vertex%e%P*vertex%ue%y / vertex%q
       vertex%uq%z =(vertex%Ein - vertex%e%P*vertex%ue%z)/ vertex%q
 
-      vertex%zhad=zhadin
-      vertex%p%P = sqrt((vertex%zhad*vertex%nu)**2-Mpi2)
-      vertex%theta_pq=thpqin/degrad
+c      vertex%theta_pq=thpqin/degrad
       vertex%pt2=vertex%p%P**2*(1.0-cos(vertex%theta_pq)**2)
       
       doing_semipi=.true.
