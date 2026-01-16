@@ -49,7 +49,7 @@ c electron stuff
 c     q-vector
       vertex%zhad=zhadin
       vertex%p%P = sqrt((vertex%zhad*vertex%nu)**2-Mpi2)
-      vertex%theta_pq = asin(ptin/vertex%p%P)
+      vertex%theta_pq = asin(1000.0*ptin/vertex%p%P)
       thpqin=vertex%theta_pq*degrad
       vertex%uq%x = - vertex%e%P*vertex%ue%x / vertex%q
       vertex%uq%y = - vertex%e%P*vertex%ue%y / vertex%q
@@ -61,7 +61,7 @@ c      vertex%theta_pq=thpqin/degrad
       doing_semipi=.true.
 C     loop over phi - for now, this will give you the same cross section for all
 C     phi, until we add interference terms to the cross section model
-      write(6,*)'#Eb,x,Q2,z,th_pq: ', ebeamin,q2in,xin,zhadin,thpqin
+      write(6,*)'#Eb,x,Q2,z,th_pq,pt: ', ebeamin,q2in,xin,zhadin,thpqin,sqrt(vertex%pt2)/1000.0
       write(6,*) '#A, Z',Ain, Zin
       write(6,*) '#phi, sighad, sigsemi (ub/GeV2/sr2)'
       do i=1,nphibin
