@@ -1,4 +1,6 @@
 	subroutine NtupleInit(filename)
+
+	USE structureModule
 	implicit none
 	save
 
@@ -160,6 +162,32 @@ c	endif
 	    NtupleTag(m) = 'saghai'	! 54
 	    m = m+1
 	    NtupleTag(m) = 'factor'	! 55
+	 endif
+	 if(doing_pizero) then
+	     m = m+1
+	     NtupleTag(m) = 'xcal_gamma1'
+	     m = m+1
+	     NtupleTag(m) = 'ycal_gamma1'
+	     m = m+1
+	     NtupleTag(m) = 'Egamma1'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1x'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1y'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1z'
+	     m = m+1
+	     NtupleTag(m) = 'xcal_gamma2'
+	     m = m+1
+	     NtupleTag(m) = 'ycal_gamma2'
+	     m = m+1
+	     NtupleTag(m) = 'Egamma2'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2x'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2y'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2z'
 	  endif
 	else if (doing_semi.or.doing_rho) then
 	  m = m+1
@@ -231,6 +259,35 @@ c	endif
 	     NtupleTag(m) = 'Mrho' ! 57 or 65
 	     m = m+1
 	     NtupleTag(m) = 'Thrho' ! 58 or 66
+	     m = m+1
+	     NtupleTag(m) = 'mmnuc'	! 59
+	  endif
+
+	  if(doing_pizero) then
+	     m = m+1
+	     NtupleTag(m) = 'xcal_gamma1'
+	     m = m+1
+	     NtupleTag(m) = 'ycal_gamma1'
+	     m = m+1
+	     NtupleTag(m) = 'Egamma1'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1x'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1y'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma1z'
+	     m = m+1
+	     NtupleTag(m) = 'xcal_gamma2'
+	     m = m+1
+	     NtupleTag(m) = 'ycal_gamma2'
+	     m = m+1
+	     NtupleTag(m) = 'Egamma2'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2x'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2y'
+	     m = m+1
+	     NtupleTag(m) = 'Pgamma2z'
 	  endif
 	    
 	else if (doing_hyd_elast .or. doing_nuc_elast .or. doing_deuterium .or. doing_heavy) then
@@ -255,11 +312,11 @@ c	endif
 	  m = m+1
 	  NtupleTag(m) = 'sigcc'	! 43
 	  m = m+1
-	  NtupleTag(m) = 'Weight'	! 44
+	  NtupleTag(m) = 'Weight' ! 44
 	  m = m+1
-	  NtupleTag(m) = 'thetae_v'	! 45
+	  NtupleTag(m) = 'theta_e' ! 45
 	  m = m+1
-	  NtupleTag(m) = 'thetae_r'	! 46
+	  NtupleTag(m) = 'theta_p'	! 46
 	endif
 
 !	else		!used to be the if (doing_phsp) option.

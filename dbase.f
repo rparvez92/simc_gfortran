@@ -22,7 +22,14 @@
 !       Added additional options for which_pion:
 !       which_pion = 2: gamma* p -> pi+ Delta0,  gamma* D -> pi+ Delta0 n, or -> pi+ Delta- p
 !       which_pion = 3: gamma* p -> pi- Delta++, gamma* D -> pi- Delta++ n, or -> pi- Delta+ p
-!
+!       More options for pi0:
+!       set "doing_pizero =1" in input file, then
+!       which_pion= 0( 1) gives pi0 production from proton (neutron)
+!       which_pion= 2: gamma* p -> pi0 Delta+
+!       which_pion= 3: gamma* n -> pi0 Delta0
+!       set "pizero_ngamma" to 1 or 2 whether you want to detect a minimum of 1 or 2 photons	
+
+	
 ! 4. doing_phsp:Generate acceptance with radiation and cross section disabled,
 !	use doing_kaon or doing_pion to set hadron mass, then 
 !	set doing_eep,doing_kaon and doing_pion to FALSE.
@@ -36,9 +43,11 @@
 ! 6. doing_semi: H(e,e'pi)X (doing_semipi) and H(e,e'k)X (doing_semika) 
 ! 7. doing_rho: H(e,e'rho)p, D(e,e'rho)p, 3He(e,e'rho)p
 
+	USE structureModule
+	USE histoModule
 	implicit none
 	include 'radc.inc'
-	include 'histograms.inc'
+c	include 'histograms.inc'
 	include 'simulate.inc'
 
 	real*8 dum1,dum2,dum3,dum4,dum5,dum6,dum7
@@ -110,6 +119,8 @@
 c
 	   if (random_seed .eq. -1) random_seed=time()	   
 	write(*,*) 'Use random seed = ',random_seed
+C translate integers to logical
+	call convert_to_logical
 
 C DJG: Ugly hack! This must come before the test on doing_pion
 	if(doing_pion .and. doing_semi) then
@@ -126,8 +137,9 @@ C DJG:
 
 ! ... dbase field experiment.
 	if (doing_pion) then
-	  Mh=Mpi
-	  if (nint(targ%A).eq.1 .and. which_pion.eq.1) 
+	   Mh=Mpi
+	   if (doing_pizero) Mh=Mpi0
+	   if (nint(targ%A).eq.1 .and. which_pion.eq.1 .and. .not. doing_pizero) 
      >		stop 'Pi- production from Hydrogen not allowed!'
 	  if (nint(targ%A).le.2 .and. which_pion.ge.10) 
      >		stop 'Coherent production from Hydrogen/Deuterium not allowed!'
@@ -135,6 +147,7 @@ C DJG:
      >		stop 'Coherent Pi- production from 3He not allowed!'
 	  if (nint(targ%A).eq.4 .and. which_pion.ge.10) 
      >		stop 'Coherent production from 4He not allowed!'
+	  
 	  doing_hydpi = (nint(targ%A).eq.1)
 	  doing_deutpi = (nint(targ%A).eq.2)
 	  doing_hepi = (nint(targ%A).ge.3)
@@ -170,7 +183,8 @@ C DJG:
 	else if (doing_delta) then
 	  Mh=Mp
 	  if (nint(targ%A).ge.2) 
-     >      write(6,*) 'WARNING: Delta cross section model only set up for proton target!'
+     >      write(6,*) 'WARNING: Delta cross section model",
+     >       " only set up for proton target!'
 	  doing_hyddelta = (nint(targ%A).eq.1)
 	  doing_deutdelta = (nint(targ%A).eq.2)
 	  doing_hedelta = (nint(targ%A).ge.3)
@@ -179,11 +193,13 @@ C DJG:
 	else if (doing_semi) then
 	   if(doing_semipi) then
 	      Mh=Mpi
+	      if(doing_pizero) 	Mh=Mpi0
 	   elseif(doing_semika) then
 	      Mh=Mk
 	   endif
 	   doing_hydsemi = (nint(targ%A).eq.1)
 	   doing_deutsemi = (nint(targ%A).eq.2)
+	   doing_hesemi = (nint(targ%A).ge.3)
 	   if(doing_hydsemi.and.do_fermi) then
 	      write(6,*) 'WARNING: Cannot do Fermi motion for Hydrogen!'
 	      write(6,*) 'Do you mean to be running deuterium?'
@@ -240,10 +256,10 @@ C DJG:
 	  stop 'I dont know what phi should be for the electron arm'
 	endif
 
-	if (hadron_arm.eq.1 .or. hadron_arm.eq.3) then
+	if (hadron_arm.eq.1 .or. hadron_arm.eq.3 .or. hadron_arm.eq.7) then
 	  spec%p%phi = 3*pi/2.
 	else if (hadron_arm.eq.2 .or. hadron_arm.eq.4 .or.
-     >		 hadron_arm.eq.5 .or. hadron_arm.eq.6) then
+     >		 hadron_arm.eq.5 .or. hadron_arm.eq.6 .or. hadron_arm.eq.8) then
 	  spec%p%phi = pi/2.
 	else
 	  stop 'I dont know what phi should be for the hadron arm'
@@ -289,10 +305,10 @@ C DJG:
 	   targ%Mtar_struck = Mp
 	   targ%Mrec_struck = Mp    !must have at LEAST a recoiling proton
 	                            !Probably more...
-	   if(doing_deutsemi) then
-	      targ%Mtar_struck = (Mp+Mn)/2.0
-	      targ%Mrec_struck = (Mp+Mn)/2.0
-	   endif
+c	   if(doing_deutsemi.or.doing_hesemi) then
+c	      targ%Mtar_struck = (Mp+Mn)/2.0
+c	      targ%Mrec_struck = (Mp+Mn)/2.0
+c	   endif
 	   if(doing_hplus) then
 	      sign_hadron=1.0
 	   else
@@ -314,34 +330,54 @@ C DJG:
 ! ... A as target, with one n->p or p->n.
 
 	else if (doing_pion) then
-	  if (which_pion .eq. 0) then
-	    targ%Mtar_struck = Mp      ! H(e,e'pi+)n or D(e,e'pi+)nn
-	    targ%Mrec_struck = Mn
-	    sign_hadron=1.0
-	  else if (which_pion .eq. 1) then
-	    targ%Mtar_struck = Mn      ! D(e,e'pi-) pp
-	    targ%Mrec_struck = Mp
-	    sign_hadron=-1.0
-	  else if (which_pion .eq. 2 ) then
-	    targ%Mtar_struck = Mp      ! H(e,e'pi+)Delta0, D(e,e'pi+)nDelta0, D(e,e'pi+)pDelta-
-	    targ%Mrec_struck = MDelta
-	    sign_hadron = 1.0
-	  else if (which_pion .eq. 3) then
-	    targ%Mtar_struck = Mp      ! H(e,e'pi-)Delta++, D(e,e'pi-)nDelta++, D(e,e'pi-)pDelta+
-	    targ%Mrec_struck = MDelta
-	    sign_hadron = -1.0
-	  else if (which_pion .eq. 10) then
-	    targ%Mtar_struck = targ%M  ! A(e,e'pi+)A'
-	    targ%Mrec_struck = targ%Mrec
-	    Mrec_guess = targ%M - Mp + Mn
-	    sign_hadron=1.0
-	  else if (which_pion .eq. 11) then
-	    targ%Mtar_struck = targ%M  ! A(e,e'pi-)A'
-	    targ%Mrec_struck = targ%Mrec
-	    Mrec_guess = targ%M - Mn + Mp
-	    sign_hadron=-1.0
-	  else
-	    stop 'Bad value for which_pion'
+	   if(doing_pizero) then
+	      if (which_pion .eq. 0) then
+		 targ%Mtar_struck = Mp ! H(e,e'pi0)p or D(e,e'p0)pn
+		 targ%Mrec_struck = Mp
+		 sign_hadron=1.0  ! only used for polarized target...
+	     else if (which_pion .eq. 1) then
+		targ%Mtar_struck = Mn ! D(e,e'pi0) pn (from neutron)
+		targ%Mrec_struck = Mn
+		sign_hadron=-1.0
+	     else if (which_pion .eq. 2 ) then
+		targ%Mtar_struck = Mp ! H(e,e'pi0)Delta+, D(e,e'pi0)nDelta+
+		targ%Mrec_struck = MDelta
+		sign_hadron = 1.0
+	     else if (which_pion .eq. 3) then
+		targ%Mtar_struck = Mn ! D(e,e'pi0)pDelta0
+		targ%Mrec_struck = MDelta
+		sign_hadron = -1.0
+	     endif
+	   else
+	     if (which_pion .eq. 0) then
+		targ%Mtar_struck = Mp ! H(e,e'pi+)n or D(e,e'pi+)nn
+		targ%Mrec_struck = Mn
+		sign_hadron=1.0
+	     else if (which_pion .eq. 1) then
+		targ%Mtar_struck = Mn ! D(e,e'pi-) pp
+		targ%Mrec_struck = Mp
+		sign_hadron=-1.0
+	     else if (which_pion .eq. 2 ) then
+		targ%Mtar_struck = Mp ! H(e,e'pi+)Delta0, D(e,e'pi+)nDelta0, D(e,e'pi+)pDelta-
+		targ%Mrec_struck = MDelta
+		sign_hadron = 1.0
+	     else if (which_pion .eq. 3) then
+		targ%Mtar_struck = Mp ! H(e,e'pi-)Delta++, D(e,e'pi-)nDelta++, D(e,e'pi-)pDelta+
+		targ%Mrec_struck = MDelta
+		sign_hadron = -1.0
+	     else if (which_pion .eq. 10) then
+		targ%Mtar_struck = targ%M ! A(e,e'pi+)A'
+		targ%Mrec_struck = targ%Mrec
+		Mrec_guess = targ%M - Mp + Mn
+		sign_hadron=1.0
+	     else if (which_pion .eq. 11) then
+		targ%Mtar_struck = targ%M ! A(e,e'pi-)A'
+		targ%Mrec_struck = targ%Mrec
+		Mrec_guess = targ%M - Mn + Mp
+		sign_hadron=-1.0
+	     else
+		stop 'Bad value for which_pion'
+	     endif
 	  endif
 
 	  if (which_pion .ge. 10) then	!Coherent pion production.
@@ -671,16 +707,55 @@ C DJG:
 	else if (doing_semi) then 
            if (doing_semipi) then
 	      if(doing_hydsemi) then
-		 if(doing_hplus) then
-		    write(6,*) ' ****--------  H(e,e''pi+)X  --------****'
+		 if(doing_pizero) then
+		    write(6,*) ' ****--------  H(e,e''pi0)X  --------****'
+		    if(pizero_ngamma.eq.1) then
+		       write(6,*) 'Requiring only one photon from decaying pi0'
+		    elseif(pizero_ngamma.eq.2) then
+		       write(6,*) 'Requiring both photons from decaying pi0'
+		    else
+		       stop 'pizero_ngamma not set correctly(must be 1 or 2), stopping'
+		    endif			  
 		 else
-		    write(6,*) ' ****--------  H(e,e''pi-)X  --------****'
+		    if(doing_hplus) then
+		       write(6,*) ' ****--------  H(e,e''pi+)X  --------****'
+		    else
+		       write(6,*) ' ****--------  H(e,e''pi-)X  --------****'
+		    endif
 		 endif
 	      elseif (doing_deutsemi) then
-		 if(doing_hplus) then
-		    write(6,*) ' ****--------  D(e,e''pi+)X  --------****'
+		 if(doing_pizero) then
+		    write(6,*) ' ****--------  D(e,e''pi0)X  --------****'
+		    if(pizero_ngamma.eq.1) then
+		       write(6,*) 'Requiring only one photon from decaying pi0'
+		    elseif(pizero_ngamma.eq.2) then
+		       write(6,*) 'Requiring both photons from decaying pi0'
+		    else
+		       stop 'pizero_ngamma not set correctly(must be 1 or 2), stopping'
+		    endif
 		 else
-		    write(6,*) ' ****--------  D(e,e''pi-)X  --------****'
+		    if(doing_hplus) then
+		       write(6,*) ' ****--------  D(e,e''pi+)X  --------****'
+		    else
+		       write(6,*) ' ****--------  D(e,e''pi-)X  --------****'
+		    endif
+		 endif
+	      elseif (doing_hesemi) then
+		 if(doing_pizero) then
+		    write(6,*) ' ****--------  A(e,e''pi0)X  --------****'
+		    if(pizero_ngamma.eq.1) then
+		       write(6,*) 'Requiring only one photon from decaying pi0'
+		    elseif(pizero_ngamma.eq.2) then
+		       write(6,*) 'Requiring both photons from decaying pi0'
+		    else
+		       stop 'pizero_ngamma not set correctly(must be 1 or 2), stopping'
+		    endif
+		 else
+		    if(doing_hplus) then
+		       write(6,*) ' ****--------  A(e,e''pi+)X  --------****'
+		    else
+		       write(6,*) ' ****--------  A(e,e''pi-)X  --------****'
+		    endif
 		 endif
 	      endif
 	      
@@ -696,6 +771,12 @@ C DJG:
 		    write(6,*) ' ****--------  D(e,e''K+)X  --------****'
 		 else
 		    write(6,*) ' ****--------  D(e,e''K-)X  --------****'
+		 endif
+	      elseif(doing_hesemi) then
+		 if(doing_hplus) then
+		    write(6,*) ' ****--------  A(e,e''K+)X  --------****'
+		 else
+		    write(6,*) ' ****--------  A(e,e''K-)X  --------****'
 		 endif
 	      endif
 	   else  
@@ -713,31 +794,45 @@ C DJG:
 	    stop 'I don''t have ANY idea what (e,e''p)pi we''re doing!!!'
 	  endif
 	else if (doing_pion) then
-	  if (doing_hydpi) then
-	    if (targ%A .eq. 1) then
-	      write(6,*) ' ****--------  H(e,e''pi)  --------****'
-	    else if (targ%A .ge. 3) then
+	   if (doing_hydpi) then
+	      if (targ%A .eq. 1) then
+		 write(6,*) ' ****--------  H(e,e''pi)  --------****'
+	      else if (targ%A .ge. 3) then
+		 write(6,*) ' ****--------  A(e,e''pi)  --------****'
+	      endif
+	   else if (doing_deutpi) then
+	      write(6,*) ' ****--------  D(e,e''pi)  --------****'
+	   else if (doing_hepi) then
 	      write(6,*) ' ****--------  A(e,e''pi)  --------****'
+	   else
+	      stop 'I don''t have ANY idea what (e,e''pi) we''re doing!!!'
+	   endif
+	 if (doing_pizero) then
+	    write(6,*) ' ****-------  pi0 production  -------****'
+	    if(pizero_ngamma.eq.1) then
+	       write(6,*) 'Requiring only one photon from decaying pi0'
+	    elseif(pizero_ngamma.eq.2) then
+	       write(6,*) 'Requiring both photons from decaying pi0'
+	    else
+	       stop 'pizero_ngamma not set correctly(must be 1 or 2), stopping'
 	    endif
-	  else if (doing_deutpi) then
-	    write(6,*) ' ****--------  D(e,e''pi)  --------****'
-	  else if (doing_hepi) then
-	    write(6,*) ' ****--------  A(e,e''pi)  --------****'
-	  else
-	    stop 'I don''t have ANY idea what (e,e''pi) we''re doing!!!'
-	  endif
-	  if (which_pion.eq.0 .or. which_pion.eq.10 .or. which_pion.eq.2) then
-	    write(6,*) ' ****-------  pi+ production  -------****'
-	  else if (which_pion.eq.1 .or. which_pion.eq.11 .or. which_pion.eq.3) then
-	    write(6,*) ' ****-------  pi- production  -------****'
-	  endif
-	  if (which_pion.eq.0 .or. which_pion.eq.1) then
+	 else
+	    if (which_pion.eq.0 .or. which_pion.eq.10 .or. which_pion.eq.2) then
+	       write(6,*) ' ****-------  pi+ production  -------****'
+	    else if (which_pion.eq.1 .or. which_pion.eq.11 .or. which_pion.eq.3) then
+	       write(6,*) ' ****-------  pi- production  -------****'
+	    endif
+	 endif
+	 if (which_pion.eq.0 .or. which_pion.eq.1) then
 	    write(6,*) ' ****---- Quasifree Production ----****'
-	  else if (which_pion.eq.10 .or. which_pion.eq.11) then
+	 else if (which_pion.eq.10 .or. which_pion.eq.11) then
 	    write(6,*) ' ****----  Coherent Production ----****'
-	  else if (which_pion.eq.2 .or. which_pion.eq.3) then
+	 else if (which_pion.eq.2 .or. which_pion.eq.3) then
+	    if(doing_hydpi .and. which_pion.eq.3) then
+	       stop 'Can''t do Delta+ production from neutron for pi0'
+	    endif
 	    write(6,*) ' ****---- Quasifree Production - Delta final state ----****'
-	  endif
+	 endif
 	else if (doing_kaon) then
 	  if (doing_hydkaon) then
 	    if (targ%A .eq. 1) then
@@ -803,13 +898,14 @@ c	      stop
 	else if (electron_arm.eq.4) then
 	  write(6,*) '   HRSL is detecting electrons'
 	else if (electron_arm.eq.5) then
-	  write(6,*) '   SHMS is detecting electrons (SSA TUNE)'
+	  write(6,*) '   SHMS is detecting electrons'
 	else if (electron_arm.eq.6) then
-	  write(6,*) '   SHMS is detecting electrons (LSA TUNE)'
+	   write(6,*) '   This spectrometer option no longer available'
+	   stop
 	else if (electron_arm.eq.7) then
-	  write(6,*) '   BIGCAL is detecting electrons (HMS side of beam)'
+	  write(6,*) '   CALORIMETER is detecting electrons (HMS side of beam)'
 	else if (electron_arm.eq.8) then
-	  write(6,*) '   BIGCAL is detecting electrons (SOS side of beam)'
+	  write(6,*) '   CALORIMETER is detecting electrons (SHMS side of beam)'
 	endif
 
 	if (hadron_arm.eq.1) then
@@ -821,27 +917,33 @@ c	      stop
 	else if (hadron_arm.eq.4) then
 	  write(6,*) '   HRSL is detecting hadrons'
 	else if (hadron_arm.eq.5) then
-	  write(6,*) '   SHMS is detecting hadrons (SSA TUNE)'
+	  write(6,*) '   SHMS is detecting hadrons'
 	else if (hadron_arm.eq.6) then
-	  write(6,*) '   SHMS is detecting hadrons (LSA TUNE)'
-	else if (hadron_arm.eq.7 .or. hadron_arm.eq.8) then
-	  write(6,*) ' Cannot use Bigcal for hadrons'
-	  stop
+	   write(6,*) '   This spectrometer option no longer available'
+	   stop
+	else if (hadron_arm.eq.7) then
+	   write(6,*) '   CALORIMETER is detecting hadrons (HMS side of beam)'
+	else if (hadron_arm.eq.8) then
+	   write(6,*) '   CALORIMETER is detecting hadrons (SHMS side of beam)'
 	endif
 
 	if (hadron_arm.eq.electron_arm) then
 	  write(6,*) '**WARNING: SIMC works best with two DIFFERENT spectrometers!!!'
 	else if ((hadron_arm+electron_arm).eq.3) then
-	  write(6,*) 'Rolf welcomes you to Hall C at Jefferson Lab - Get to work!'
+	  write(6,*) 'Welcome time traveler to Hall C at 6 GeV - Get to work!'
 	else if (electron_arm.eq.5 .or. hadron_arm.eq.5 .or.
      >		 electron_arm.eq.6 .or. hadron_arm.eq.6) then
-	  write(6,*) 'Grumpy Dutch Giant welcomes you to Hall C++ at JLab12 - Get to work!'
+	  write(6,*) 'Welcome to Hall C++ at JLab12 - Get to work!'
 	else if ((hadron_arm+electron_arm).eq.7) then
-	  write(6,*) 'Kees welcomes you to Hall A at Jefferson Lab - Enjoy your stay!'
+	  write(6,*) 'Welcome to Hall A at Jefferson Lab - Enjoy your stay!'
 	else if ( electron_arm.eq.7 .and. hadron_arm .eq. 5) then
-	  write(6,*) ' Bigcal and SHMS'
+	  write(6,*) ' Bigcal detecting electrons and SHMS detecting hadrons'
 	else if ( electron_arm.eq.8 .and. hadron_arm .eq. 1) then
-	  write(6,*) ' Bigcal and HMS'
+	   write(6,*) ' Bigcal detecting electrons and HMS detecting hadrons'
+	else if ( electron_arm.eq.1 .and. hadron_arm .eq. 8) then
+	  write(6,*) ' HMS detecting electrons and NPS detecting pi0/gammas'
+	else if ( electron_arm.eq.5 .and. hadron_arm .eq. 7) then
+	  write(6,*) ' SHMS detecting electrons and NPS detecting pi0/gammas'
 	else
 	  write(6,*) '**WARNING: SIMC works best when both spectrometers are in the same hall!!'
 	endif
@@ -855,10 +957,14 @@ c	      stop
 	if (.not.using_P_arm_montecarlo) write(6,*) 'NOTE: Will NOT be running events through the P arm Monte Carlo'
 	if (.not.using_Eloss) write(6,*) 'NOTE: Will NOT be calculating energy loss in the target'
 	if (.not.using_Coulomb) write(6,*) 'NOTE: Will NOT be calculating Coulomb correction (default for Hydrogen target)'
-	if (using_Coulomb) write(6,*) 'NOTE: WILL be calculating Coulomb corrections. 
-     >             Implmemented for beam and scattered electron only!'
+	if (using_Coulomb) then
+	   write(6,*) 'NOTE: WILL be calculating Coulomb corrections.'  
+	   write(6,*) 'Implmemented for beam and scattered electron only !'
+	endif
 	if (.not.correct_Eloss) write(6,*) 'NOTE: Will NOT correct reconstructed data for energy loss'
 	if (.not.correct_raster) write(6,*) 'NOTE: Will NOT use raster terms in reconstruction'
+	if (using_HMScoll) write(6,*) 'NOTE: including pion scattering in HMS collimator'
+	if (using_SHMScoll) write(6,*) 'NOTE: including pion scattering in SHMS collimator'
 
 	return
 	end
@@ -867,6 +973,7 @@ c	      stop
 
 	subroutine regallvars()
 
+	USE structureModule
 	implicit none
 	include 'simulate.inc'
 	include 'radc.inc'
@@ -876,16 +983,17 @@ c	      stop
 	integer*4 regparmintarray, regparmdoublearray
 	integer*4 regparmstring
 !	integer*4 regparmreal
+	integer*4 test
 
 *	RESTSW
 
 	if (debug(2)) write(6,*)'regallvars: entering'
-	ierr = regparmint('mc_smear',mc_smear,0)
+	ierr = regparmint('mc_smear',mc_smear_int,0)
 	ierr = regparmint('electron_arm',electron_arm,0)
 	ierr = regparmint('hadron_arm',hadron_arm,0)
 	ierr = regparmint('use_first_cer',use_first_cer,0)
-	ierr = regparmdouble('transparency',transparency,0)
-	ierr = regparmint('use_benhar_sf',use_benhar_sf,0)
+	ierr = regparmdouble('transparency',transparency,0.0)
+	ierr = regparmint('use_benhar_sf',use_benhar_sf_int,0)
 	ierr = regparmstring('extra_dbase_file',extra_dbase_file,0)
 	ierr = regparmstring('random_state_file',random_state_file,0)
 	ierr = regparmint('random_seed',random_seed,0)
@@ -898,67 +1006,69 @@ c	      stop
 	ierr = regparmint('doing_nuc_elast',doing_nuc_elast,0)
 	ierr = regparmint('doing_kaon',doing_kaon,0)
 	ierr = regparmint('which_kaon',which_kaon,0)
-	ierr = regparmint('doing_pion',doing_pion,0)
+	ierr = regparmint('doing_pion',doing_pion_int,0)
 	ierr = regparmint('which_pion',which_pion,0)
-	ierr = regparmint('doing_delta',doing_delta,0)
-	ierr = regparmint('doing_semi', doing_semi,0)
-	ierr = regparmint('doing_hplus', doing_hplus,1)
-	ierr = regparmint('doing_rho',doing_rho,0)
-	ierr = regparmint('doing_decay',doing_decay,0)
-	ierr = regparmdouble('ctau',ctau,0)
+	ierr = regparmint('doing_delta',doing_delta_int,0)
+	ierr = regparmint('doing_semi', doing_semi_int,0)
+	ierr = regparmint('doing_hplus', doing_hplus_int,1)
+	ierr = regparmint('doing_pizero', doing_pizero_int,0)
+	ierr = regparmint('pizero_ngamma', pizero_ngamma,0)
+	ierr = regparmint('doing_rho',doing_rho_int,0)
+	ierr = regparmint('doing_decay',doing_decay_int,0)
+	ierr = regparmdouble('ctau',ctau,0.0)
 
 *	DEBUG
 
-	ierr = regparmintarray('debug',debug,6,0)
+	ierr = regparmintarray('debug',debug_int,6,0)
 
 *	TARGET
 
-	ierr = regparmdouble('targ%A',targ%A,0)
-	ierr = regparmdouble('targ%Z',targ%Z,0)
-	ierr = regparmdouble('targ%mass_amu',targ%mass_amu,0)
-	ierr = regparmdouble('targ%mrec_amu',targ%mrec_amu,0)
-	ierr = regparmdouble('targ%rho',targ%rho,0)
-	ierr = regparmdouble('targ%thick',targ%thick,0)
-	ierr = regparmdouble('targ%xoffset',targ%xoffset,0)
-	ierr = regparmdouble('targ%yoffset',targ%yoffset,0)
+	ierr = regparmdouble('targ%A',targ%A,0.0)
+	ierr = regparmdouble('targ%Z',targ%Z,0.0)
+	ierr = regparmdouble('targ%mass_amu',targ%mass_amu,0.0)
+	ierr = regparmdouble('targ%mrec_amu',targ%mrec_amu,0.0)
+	ierr = regparmdouble('targ%rho',targ%rho,0.0)
+	ierr = regparmdouble('targ%thick',targ%thick,0.0)
+	ierr = regparmdouble('targ%xoffset',targ%xoffset,0.0)
+	ierr = regparmdouble('targ%yoffset',targ%yoffset,0.0)
 	ierr = regparmint('targ%fr_pattern',targ%fr_pattern,0)
-	ierr = regparmdouble('targ%fr1',targ%fr1,0)
-	ierr = regparmdouble('targ%fr2',targ%fr2,0)
-	ierr = regparmdouble('targ%zoffset',targ%zoffset,0)
-	ierr = regparmdouble('targ%angle',targ%angle,0)
-	ierr = regparmdouble('targ%abundancy',targ%abundancy,0)
+	ierr = regparmdouble('targ%fr1',targ%fr1,0.0)
+	ierr = regparmdouble('targ%fr2',targ%fr2,0.0)
+	ierr = regparmdouble('targ%zoffset',targ%zoffset,0.0)
+	ierr = regparmdouble('targ%angle',targ%angle,0.0)
+	ierr = regparmdouble('targ%abundancy',targ%abundancy,0.0)
 	ierr = regparmint('targ%can',targ%can,0)
-	ierr = regparmdouble('targ_Bangle',targ_Bangle,0)
-	ierr = regparmdouble('targ_Bphi',targ_Bphi,0)
-	ierr = regparmdouble('targ_pol',targ_pol,0)
+	ierr = regparmdouble('targ_Bangle',targ_Bangle,0.0)
+	ierr = regparmdouble('targ_Bphi',targ_Bphi,0.0)
+	ierr = regparmdouble('targ_pol',targ_pol,0.0)
 
 *	E_ARM_MAIN
 
-	ierr = regparmdouble('spec%e%P',spec%e%P,0)
-	ierr = regparmdouble('spec%e%theta',spec%e%theta,0)
+	ierr = regparmdouble('spec%e%P',spec%e%P,0.0)
+	ierr = regparmdouble('spec%e%theta',spec%e%theta,0.0)
 
 *	P_ARM_MAIN
 
-	ierr = regparmdouble('spec%p%P',spec%p%P,0)
-	ierr = regparmdouble('spec%p%theta',spec%p%theta,0)
+	ierr = regparmdouble('spec%p%P',spec%p%P,0.0)
+	ierr = regparmdouble('spec%p%theta',spec%p%theta,0.0)
 
 *	E_ARM_OFFSET
 
-	ierr = regparmdouble('gen%ywid',gen%ywid,0)
-	ierr = regparmdouble('gen%xwid',gen%xwid,0)
-	ierr = regparmdouble('spec%e%offset%x',spec%e%offset%x,0)
-	ierr = regparmdouble('spec%e%offset%y',spec%e%offset%y,0)
-	ierr = regparmdouble('spec%e%offset%z',spec%e%offset%z,0)
-	ierr = regparmdouble('spec%e%offset%xptar',spec%e%offset%xptar,0)
-	ierr = regparmdouble('spec%e%offset%yptar',spec%e%offset%yptar,0)
+	ierr = regparmdouble('gen%ywid',gen%ywid,0.0)
+	ierr = regparmdouble('gen%xwid',gen%xwid,0.0)
+	ierr = regparmdouble('spec%e%offset%x',spec%e%offset%x,0.0)
+	ierr = regparmdouble('spec%e%offset%y',spec%e%offset%y,0.0)
+	ierr = regparmdouble('spec%e%offset%z',spec%e%offset%z,0.0)
+	ierr = regparmdouble('spec%e%offset%xptar',spec%e%offset%xptar,0.0)
+	ierr = regparmdouble('spec%e%offset%yptar',spec%e%offset%yptar,0.0)
 
 *	P_ARM_OFFSET
 
-	ierr = regparmdouble('spec%p%offset%x',spec%p%offset%x,0)
-	ierr = regparmdouble('spec%p%offset%y',spec%p%offset%y,0)
-	ierr = regparmdouble('spec%p%offset%z',spec%p%offset%z,0)
-	ierr = regparmdouble('spec%p%offset%xptar',spec%p%offset%xptar,0)
-	ierr = regparmdouble('spec%p%offset%yptar',spec%p%offset%yptar,0)
+	ierr = regparmdouble('spec%p%offset%x',spec%p%offset%x,0.0)
+	ierr = regparmdouble('spec%p%offset%y',spec%p%offset%y,0.0)
+	ierr = regparmdouble('spec%p%offset%z',spec%p%offset%z,0.0)
+	ierr = regparmdouble('spec%p%offset%xptar',spec%p%offset%xptar,0.0)
+	ierr = regparmdouble('spec%p%offset%yptar',spec%p%offset%yptar,0.0)
 
 *	MISC2INT
 
@@ -969,54 +1079,95 @@ c	      stop
 *	SIMULATE
 
 	ierr = regparmint('ngen',ngen,0)
-	ierr = regparmint('hard_cuts',hard_cuts,0)
-	ierr = regparmint('using_rad',using_rad,0)
+	ierr = regparmint('hard_cuts',hard_cuts_int,0)
+	ierr = regparmint('using_rad',using_rad_int,0)
 	ierr = regparmint('spect_mode',spect_mode,0)
-	ierr = regparmint('doing_phsp',doing_phsp,0)
-	ierr = regparmdouble('cuts%Em%min',cuts%Em%min,0)
-	ierr = regparmdouble('cuts%Em%max',cuts%Em%max,0)
-	ierr = regparmint('using_Eloss',using_Eloss,0)
-	ierr = regparmint('correct_Eloss',correct_eloss,0)
-	ierr = regparmint('correct_raster',correct_raster,0)
+	ierr = regparmint('doing_phsp',doing_phsp_int,0)
+	ierr = regparmdouble('cuts%Em%min',cuts%Em%min,0.0)
+	ierr = regparmdouble('cuts%Em%max',cuts%Em%max,0.0)
+	ierr = regparmint('using_Eloss',using_Eloss_int,0)
+	ierr = regparmint('correct_Eloss',correct_eloss_int,0)
+	ierr = regparmint('correct_raster',correct_raster_int,0)
+	ierr = regparmint('using_HMScoll',using_HMScoll_int,0)
+	ierr = regparmint('using_SHMScoll',using_SHMScoll_int,0)
 	ierr = regparmint('deForest_flag',deForest_flag,0)
 	ierr = regparmint('rad_flag',rad_flag,0)
 	ierr = regparmint('extrad_flag',extrad_flag,0)
-	ierr = regparmdoublearray('lambda',lambda,3,0)
-	ierr = regparmint('using_cit_generation',using_cit_generation,0)
+	ierr = regparmdoublearray('lambda',lambda,3,0.0)
+	ierr = regparmint('using_cit_generation',using_cit_generation_int,0)
 	ierr = regparmint('Nntu',Nntu,0)
-	ierr = regparmint('using_Coulomb',using_Coulomb,0)
-	ierr = regparmdouble('dE_edge_test',dE_edge_test,0)
-	ierr = regparmint('use_offshell_rad',use_offshell_rad,0)
-	ierr = regparmdouble('Egamma_gen_max',Egamma_gen_max,0)
-	ierr = regparmint('do_fermi',do_fermi,0)
-	ierr = regparmdouble('pt_b_param',pt_b_param,0)
+	ierr = regparmint('using_Coulomb',using_Coulomb_int,0)
+	ierr = regparmdouble('dE_edge_test',dE_edge_test,0.0)
+	ierr = regparmint('use_offshell_rad',use_offshell_rad_int,0)
+	ierr = regparmdouble('Egamma_gen_max',Egamma_gen_max,0.0)
+	ierr = regparmint('do_fermi',do_fermi_int,0)
+	ierr = regparmdouble('pt_b_param',pt_b_param,0.0)
 	ierr = regparmint('sigc_flag',sigc_flag,0)
 	ierr = regparmint('sigc_nbin',sigc_nbin,10)
-	ierr = regparmdouble('sigc_kin_min',sigc_kin_min,0)
+	ierr = regparmdouble('sigc_kin_min',sigc_kin_min,0.0)
 	ierr = regparmdouble('sigc_kin_max',sigc_kin_max,1.0)
 	ierr = regparmdouble('sigc_kin_ind',sigc_kin_ind,0.0)
-	ierr = regparmint('using_tgt_field',using_tgt_field,0)
+	ierr = regparmint('using_tgt_field',using_tgt_field_int,0)
 	ierr = regparmstring('tgt_field_file',tgt_field_file,0)
-	ierr = regparmdouble('drift_to_cal',drift_to_cal,0)
+	ierr = regparmdouble('drift_to_cal',drift_to_cal,0.0)
 
 *	E_ARM_ACCEPT
 
-	ierr = regparmdouble('SPedge%e%delta%min',SPedge%e%delta%min,0)
-	ierr = regparmdouble('SPedge%e%delta%max',SPedge%e%delta%max,0)
-	ierr = regparmdouble('SPedge%e%yptar%min',SPedge%e%yptar%min,0)
-	ierr = regparmdouble('SPedge%e%yptar%max',SPedge%e%yptar%max,0)
-	ierr = regparmdouble('SPedge%e%xptar%min',SPedge%e%xptar%min,0)
-	ierr = regparmdouble('SPedge%e%xptar%max',SPedge%e%xptar%max,0)
+	ierr = regparmdouble('SPedge%e%delta%min',SPedge%e%delta%min,0.0)
+	ierr = regparmdouble('SPedge%e%delta%max',SPedge%e%delta%max,0.0)
+	ierr = regparmdouble('SPedge%e%yptar%min',SPedge%e%yptar%min,0.0)
+	ierr = regparmdouble('SPedge%e%yptar%max',SPedge%e%yptar%max,0.0)
+	ierr = regparmdouble('SPedge%e%xptar%min',SPedge%e%xptar%min,0.0)
+	ierr = regparmdouble('SPedge%e%xptar%max',SPedge%e%xptar%max,0.0)
 
 *	P_ARM_ACCEPT
 
-	ierr = regparmdouble('SPedge%p%delta%min',SPedge%p%delta%min,0)
-	ierr = regparmdouble('SPedge%p%delta%max',SPedge%p%delta%max,0)
-	ierr = regparmdouble('SPedge%p%yptar%min',SPedge%p%yptar%min,0)
-	ierr = regparmdouble('SPedge%p%yptar%max',SPedge%p%yptar%max,0)
-	ierr = regparmdouble('SPedge%p%xptar%min',SPedge%p%xptar%min,0)
-	ierr = regparmdouble('SPedge%p%xptar%max',SPedge%p%xptar%max,0)
+	ierr = regparmdouble('SPedge%p%delta%min',SPedge%p%delta%min,0.0)
+	ierr = regparmdouble('SPedge%p%delta%max',SPedge%p%delta%max,0.0)
+	ierr = regparmdouble('SPedge%p%yptar%min',SPedge%p%yptar%min,0.0)
+	ierr = regparmdouble('SPedge%p%yptar%max',SPedge%p%yptar%max,0.0)
+	ierr = regparmdouble('SPedge%p%xptar%min',SPedge%p%xptar%min,0.0)
+	ierr = regparmdouble('SPedge%p%xptar%max',SPedge%p%xptar%max,0.0)
 
 	if (debug(2)) write(6,*)'regallvars: ending'
+	return
+	end
+ccc
+
+	subroutine convert_to_logical
+
+	USE structureModule
+	implicit none
+	include 'simulate.inc'
+	include 'radc.inc'
+	integer i
+
+  	if(mc_smear_int.gt.0) mc_smear=.true. 
+	if(use_benhar_sf_int.gt.0) use_benhar_sf=.true.
+        if(doing_kaon_int.gt.0) doing_kaon=.true. 
+	if(doing_pion_int.gt.0) doing_pion=.true.
+	if(doing_delta_int.gt.0) doing_delta=.true.
+	if(doing_phsp_int.gt.0) doing_phsp=.true.
+	if(doing_semi_int.gt.0) doing_semi=.true.
+        if(doing_hplus_int.gt.0) doing_hplus=.true.
+	if(doing_pizero_int.gt.0) doing_pizero=.true.
+        if(doing_rho_int.gt.0) doing_rho=.true.
+        if(doing_decay_int.gt.0) doing_decay=.true.
+        if(do_fermi_int.gt.0) do_fermi=.true.
+	do i=1,6
+	   if(debug_int(i).gt.0) debug(i)=.true.
+	enddo
+        if(hard_cuts_int.gt.0) hard_cuts=.true.
+        if(using_rad_int.gt.0) using_rad=.true.
+        if(use_offshell_rad_int.gt.0) use_offshell_rad=.true.
+	if(using_Eloss_int.gt.0) using_Eloss=.true.
+        if(correct_eloss_int.gt.0) correct_eloss=.true.
+        if(correct_raster_int.gt.0) correct_raster=.true.
+        if(using_cit_generation_int.gt.0) using_cit_generation=.true.
+	if(using_Coulomb_int.gt.0) using_Coulomb=.true.
+        if(using_tgt_field_int.gt.0) using_tgt_field=.true.
+        if(using_HMScoll_int.gt.0) using_HMScoll=.true.
+        if(using_SHMScoll_int.gt.0) using_SHMScoll=.true.
+
 	return
 	end

@@ -672,12 +672,9 @@ c	include 'histograms.inc'
 	    write(iun,*) '              ****--------  D(e,e''p)  --------****'
 	  else if (doing_heavy) then
 	    write(iun,*) '              ****--------  A(e,e''p)  --------****'
-	  else if (doing_nuc_elast) then
-	     write(iun,*) '              ****--------  A(e,e'')A  --------****'
 	  else
 	    stop 'I don''t have ANY idea what (e,e''p) we''re doing!!!'
 	  endif
-
 	else if (doing_semi) then 
 	   if (doing_semipi) then 
 	      if (targ%A .eq. 1) then 
@@ -691,12 +688,6 @@ c	include 'histograms.inc'
 		    write(iun,*) ' ****--------  D(e,e''pi+)X  --------****'
 		 else
 		    write(iun,*) ' ****--------  D(e,e''pi-)X  --------****'
-		 endif
-	      elseif (targ%A .ge. 3) then
-		 if(doing_hplus) then
-		    write(iun,*) ' ****--------  A(e,e''pi+)X  --------****'
-		 else
-		    write(iun,*) ' ****--------  A(e,e''pi-)X  --------****'
 		 endif
 	      else
 		 stop 'I don''t have ANY idea what A(e,e''pi)X we''re doing!!!'
@@ -883,9 +874,6 @@ c	include 'histograms.inc'
      >		'doing_semika', doing_semika, 'doing_pizero',doing_pizero
 	write(iun,'(5x,2(2x,a19,''='',l2))') 'doing_delta',doing_delta,
      >		'doing_phsp', doing_phsp
-	write(iun,'(5x,2(2x,a19,''='',i2))') 'which_pion', which_pion,
-     >		'which_kaon', which_kaon
-	write(iun,'(5x,1(2x,a19,''='',l2))') 'doing_nuc_elast', doing_nuc_elast
 	write(iun,'(5x,3(2x,a19,''='',i2))') 'which_pion', which_pion,
      >		'which_kaon', which_kaon, 'pizero_ngamma',pizero_ngamma
 	write(iun,'(5x,3(2x,a19,''='',l2))') 'doing_hyd_elast', doing_hyd_elast,
@@ -1201,7 +1189,15 @@ c	include 'histograms.inc'
 	vertex0%Em = targ%Mtar_struck + targ%Mrec - targ%M
 	m_spec = targ%M - targ%Mtar_struck + vertex0%Em		!=targ.Mrec
 	efer = targ%M - sqrt(m_spec**2+pfer**2)			!=M-Mrec
-
+c       method 2, Em=0, added for pionct 6/16/06
+	vertex0%Em=0.
+	m_spec = targ%M - targ%Mtar_struck + vertex0%Em		!=targ.Mrec
+	efer = targ%M - sqrt(m_spec**2+pfer**2)			!=M-Erec
+c$$$c       method 3, proton on shell, added for pionct 6/16/06
+c$$$	vertex0.Em=0.
+c$$$	efer = sqrt(pfer**2 + (targ.Mtar_struck)**2)
+c$$$	m_spec = sqrt((targ.M-efer)**2 - pfer**2)
+	
 ! Old version - not appropriate for all event types.
 ! Pop in generation values for central event
 !
@@ -1292,19 +1288,9 @@ c	enddo
 	central%sigcc = main0%sigcc
 
 	if(doing_semi) then
-	   write(6,*) 'SIDIS: central event kinematics'
+	   write(6,*) 'central event'
 	   write(6,*) 'Pt',sqrt(vertex0%pt2)/1.e3
 	   write(6,*) 'z', vertex0%zhad
-	   write(6,*) 'thpq', vertex0%theta_pq*180.0/3.1415926536
-	   write(6,*) 'Q2', vertex0%Q2
-	   write(6,*) 'xbj', vertex0%xbj
-	   write(6,*) 'Ein', vertex0%Ein
-	   write(6,*) 'A', targ%A
-	   write(6,*) 'Eprime',vertex0%e%E
-	   write(6,*) 'Ppi',vertex0%p%P
-	   write(6,*) 'The',vertex0%e%theta
-
-	   write(6,*) 'multiplicity',ntup%sigcm
 	   write(6,*) 'lab cross section (nb/Gev2/sr2)',central%sigcc*1000.0*1000.0*1000.0
 	endif
 	if (debug(2)) write(6,*)'calc_cent: ending...'
@@ -1385,8 +1371,12 @@ c	enddo
 	if (using_Eloss) then
 	  if (debug(3)) write(6,*)'mc: p arm stuff0 =',
      >		orig%p%E,main%target%Eloss(3),spec%p%P
-	  main%SP%p%delta = (sqrt(abs((orig%p%E-main%target%Eloss(3))**2
-     >		          -Mh2))-spec%p%P) / spec%p%P*100.
+c	  main%SP%p%delta = (sqrt(abs((orig%p%E-main%target%Eloss(3))**2
+c	1    -Mh2))-spec%p%P) / spec%p%P*100.
+	  
+c       pionct 6/22 picoulomb
+	  main%SP%p%delta = (sqrt(abs((orig%p%E-main%target%Eloss(3)+main%target%Coulomb)**2-Mh2))-spec%p%P) / spec%p%P*100.
+	  
 	else
 	  if (debug(3)) write(6,*)'mc: p arm stuff1 =',orig%p%delta
 	  main%SP%p%delta = orig%p%delta

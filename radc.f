@@ -119,6 +119,7 @@
 
 	subroutine generate_rad(main,vertex,orig,success)
 
+	USE structureModule
 	implicit none
 	include 'simulate.inc'
 	include 'radc.inc'
@@ -531,9 +532,10 @@ c	enddo
 	real*8 function peaked_rad_weight(vertex,Egamma,
      >		emin,emax,basicrad_val_reciprocal,basicrad_weight)
 
+	USE structureModule
 	implicit none
 	include 'radc.inc'
-	include 'structures.inc'
+c	include 'structures.inc'
 
 	real*8		Egamma, basicrad_val_reciprocal, basicrad_weight
 	real*8		t1, t2, r, phi_ext, ein, eout, emin, emax
@@ -656,6 +658,7 @@ c     >			vertex%Pmx, vertex%Pmy, vertex%Pmz
 
 	subroutine extrad_friedrich(Ei,Ecutoff,trad,dbrem,dbrem_prime)
 
+	USE structureModule
 	implicit none
 	include 'simulate.inc'
 	include 'radc.inc'
@@ -716,6 +719,7 @@ c     >			vertex%Pmx, vertex%Pmy, vertex%Pmz
 
 	real*8 function schwinger(Ecutoff,vertex,include_hard,dsoft,dhard)
 
+	USE structureModule
 	implicit none
 	include 'simulate.inc'
 	include 'radc.inc'

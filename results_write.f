@@ -1,5 +1,6 @@
 	subroutine results_ntu_write(main,vertex,orig,recon,success)
 
+	USE structureModule
 	implicit none
 	include 'radc.inc'
 	include 'hbook.inc'
@@ -169,6 +170,20 @@ c	  ntu(11) = vertex%p%xptar			!mr
 		ntu(55) = ntup%sigcm2 !sigcm - factorized.
 	     endif
 	  endif
+	  if(doing_pizero) then
+	     ntu(54) = ntup%xcal_gamma1
+	     ntu(55) = ntup%ycal_gamma1
+	     ntu(56) = ntup%gamma1(1)
+	     ntu(57) = ntup%gamma1(2)
+	     ntu(58) = ntup%gamma1(3)
+	     ntu(59) = ntup%gamma1(4)
+	     ntu(60) = ntup%xcal_gamma2
+	     ntu(61) = ntup%ycal_gamma2
+	     ntu(62) = ntup%gamma2(1)
+	     ntu(63) = ntup%gamma2(2)
+	     ntu(64) = ntup%gamma2(3)
+	     ntu(65) = ntup%gamma2(4)
+	  endif
 	else if (doing_semi.or.doing_rho) then
 	  ntu(34) = ntup%mm/1000.			!missmass (nucleon)
 	  ntu(35) = recon%p%P/1000.			!ppi - GeV/c
@@ -181,7 +196,7 @@ c	  ntu(11) = vertex%p%xptar			!mr
 	  ntu(42) = decdist				!decay distance (cm)
 	  ntu(43) = sqrt(Mh2_final)
 	  ntu(44) = recon%zhad
-	  ntu(45) = vertex%zhad
+ 	  ntu(45) = vertex%zhad
 	  ntu(46) = recon%pt2/1.e06
 	  ntu(47) = vertex%pt2/1.e06
 	  ntu(48) = recon%xbj
@@ -211,9 +226,24 @@ c	  ntu(11) = vertex%p%xptar			!mr
 	     if(doing_rho) then
 		ntu(57) = ntup%rhomass
 		ntu(58) = ntup%rhotheta
+		ntu(59) = ntup%mmA/1000.			!missmass (nucleus)HSV
 	     endif
 	  endif
-	else if (doing_hyd_elast .or. doing_nuc_elast .or. doing_deuterium .or. doing_heavy) then
+	  if(doing_pizero) then
+	     ntu(57) = ntup%xcal_gamma1
+	     ntu(58) = ntup%ycal_gamma1
+	     ntu(59) = ntup%gamma1(1)
+	     ntu(60) = ntup%gamma1(2)
+	     ntu(61) = ntup%gamma1(3)
+	     ntu(62) = ntup%gamma1(4)
+	     ntu(63) = ntup%xcal_gamma2
+	     ntu(64) = ntup%ycal_gamma2
+	     ntu(65) = ntup%gamma2(1)
+	     ntu(66) = ntup%gamma2(2)
+	     ntu(67) = ntup%gamma2(3)
+	     ntu(68) = ntup%gamma2(4)
+	  endif
+	else if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy .or. doing_nuc_elast) then
 	  ntu(34) = corrsing/1000.
 	  ntu(35) = Pm_Heepx/1000.
 	  ntu(36) = Pm_Heepy/1000.
@@ -225,8 +255,9 @@ c	  ntu(11) = vertex%p%xptar			!mr
 	  ntu(42) = ntup%radphot/1000.			!radphot - GeV
 	  ntu(43) = main%sigcc
 	  ntu(44) = main%weight
-	  ntu(45) = vertex%e%theta
-	  ntu(46) = recon%e%theta
+	  ntu(45) = recon%e%theta
+	  ntu(46) = recon%p%theta
+	  
 	endif
 
 c	call HFN(NtupleID,ntu)
@@ -240,6 +271,7 @@ c	call HFN(NtupleID,ntu)
 
 	subroutine results_ntu_write1(vertex,recon,main,success)
 
+	USE structureModule
 	implicit none
 	include 'hbook.inc'
 	include 'simulate.inc'
