@@ -275,6 +275,15 @@ cdg	endif
 	    Egamma_max(1) = vertex%Ein - ebeam_min
 	    Egamma_max(1) = min(Egamma_max(1),edge%Em%max)
 
+	  else if (doing_nuc_elast) then
+	    if (debug(5)) write(6,*)'gen_rad: at 2b'
+	    ebeam_max = targ%M*edge%e%E%max / (targ%M-edge%e%E%max*(1.-vertex%ue%z))
+	    if (ebeam_max.lt.0) ebeam_max=1.d10
+	    ebeam_min = targ%M*edge%e%E%min / (targ%M-edge%e%E%min*(1.-vertex%ue%z))
+	    Egamma_min(1) = vertex%Ein - ebeam_max
+	    Egamma_max(1) = vertex%Ein - ebeam_min
+	    Egamma_max(1) = min(Egamma_max(1),edge%Em%max)
+
 ! ... CASE 3: D(e,e'p) - limit radiation so that E_beam > E' at the vertex.
 
 	  else if (doing_deuterium) then
@@ -367,7 +376,7 @@ CDJG	    if (ntail.ne.0) Egamma_min(1) = gen.sumEgen.min - vertex.e.E
 ! ... limit on sum of photon energies, and lower limit if hadron arm does
 ! ... not radiate.  Em_MEAS = Em_VERT+(Egamma1+Egamma2+Egamma3)+/-delta_trec.
 
-	  if (doing_eep) then
+	  if (doing_eep.or.doing_nuc_elast) then
 	    Egamma_max(2) = min(Egamma_max(2),
      >		(edge%Em%max - vertex%Em) - Egamma_used(1) + max_delta_Trec )
 	    if (ntail.ne.0 .or. .not.rad_proton_this_ev)
@@ -392,7 +401,7 @@ CDJG	    if (ntail.ne.0) Egamma_min(1) = gen.sumEgen.min - vertex.e.E
      >		Egamma_used(2),basicrad_weight,basicrad_val_reciprocal)
 	  if (basicrad_weight.le.0) then
 !	    write(6,*)'gen_rad: Maybe you need to change Em limits!'
-!	    write(6,*)'min/max(2)=',egamma_min(2),egamma_max(2)
+	     if(debug(4)) write(6,*)'min/max(2)=',egamma_min(2),egamma_max(2)
 	    if (debug(4)) write(6,*)'gen_rad: failed at 7'
 	    return
 	  endif

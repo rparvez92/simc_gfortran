@@ -64,7 +64,7 @@
 	character tgt_field_file*60
 	logical using_E_arm_montecarlo, using_P_arm_montecarlo
 	logical doing_phsp, using_rad, hard_cuts
-	logical doing_hyd_elast, doing_deuterium, doing_heavy
+	logical doing_hyd_elast, doing_nuc_elast, doing_deuterium, doing_heavy
 	logical doing_eep, doing_pion, doing_delta, doing_kaon, doing_rho
 	logical doing_semi, doing_semipi, doing_semika, doing_hplus
 	logical doing_pizero
@@ -98,7 +98,8 @@ c variables that need to be translated from integer to logical
      >    deForest_flag, Nntu, ncontribute, npasscuts, ncontribute_no_rad_proton, 
      >    spect_mode, phsp_mode, base,
      >    extra_dbase_file,tgt_field_file,using_E_arm_montecarlo,using_P_arm_montecarlo,
-     >    doing_phsp, using_rad, hard_cuts, doing_hyd_elast, doing_deuterium, doing_heavy,
+     >    doing_phsp, using_rad, hard_cuts, doing_hyd_elast, doing_nuc_elast,
+     >    doing_deuterium, doing_heavy,
      >    doing_eep, doing_pion, doing_delta, doing_kaon, doing_rho, doing_semi,
      >    doing_semipi, doing_semika, doing_hplus, doing_pizero,pizero_ngamma,which_kaon,
      >    which_pion, using_cit_generation, using_Coulomb, using_Eloss,

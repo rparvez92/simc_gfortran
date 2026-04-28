@@ -558,8 +558,8 @@ C the perfect range, but it's easier than reproducing the generated limits here
 	real*8 theta_sigma
 	real*8 gauss1
 
-	if (p.lt.25.) write(6,*)
-     >		'Momentum passed to target_musc should be in MeV, but p=',p
+c	if (p.lt.25.) write(6,*)
+c     >		'Momentum passed to target_musc should be in MeV, but p=',p
 
 ! Compute rms value for planar scattering angle distribution, cf. PDB
 ! Note teff is thickness of material, in radiation lengths.

@@ -51,7 +51,7 @@
 !     >	    + 2*(recon.nu*recon.p.E - recon.p.P*recon.q*cos(recon.theta_pq))
 !	endif
 
-	if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy) then
+	if (doing_hyd_elast .or.doing_nuc_elast .or. doing_deuterium .or. doing_heavy) then
 	  poftheta = Mp*Ebeam / (2*ebeam*sin(recon%e%theta/2.)**2 + Mp)
 	  corrsing = recon%e%P - poftheta
 	  Pm_Heepz = -(recon%Pmy*recon%uq%y+recon%Pmz*recon%uq%z)
@@ -243,7 +243,7 @@ c	  ntu(11) = vertex%p%xptar			!mr
 	     ntu(67) = ntup%gamma2(3)
 	     ntu(68) = ntup%gamma2(4)
 	  endif
-	else if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy) then
+	else if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy .or. doing_nuc_elast) then
 	  ntu(34) = corrsing/1000.
 	  ntu(35) = Pm_Heepx/1000.
 	  ntu(36) = Pm_Heepy/1000.
