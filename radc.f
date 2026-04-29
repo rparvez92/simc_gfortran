@@ -256,7 +256,7 @@ cdg	endif
 	    if (ntail.ne.0) Egamma_max(1)=min(Egamma_max(1),
      >			vertex%Em - edge%Em%min + max_delta_Trec)
 
-! ... CASE 2: H(e,e'p) - Require that Ebeam after radiation can generate
+! ... CASE 2: H(e,e'p) or A(e,e'A) - Require that Ebeam after radiation can generate
 ! ... electron inside of electron arm acceptance (Ein_max for Ee'_max, etc...).
 ! ... Also require MEASURED Em < edge.Em.max (Em_meas=egamma1+egamma2+egamma3)
 
@@ -271,6 +271,15 @@ cdg	endif
 	    ebeam_max = Mp*edge%e%E%max / (Mp-edge%e%E%max*(1.-vertex%ue%z))
 	    if (ebeam_max.lt.0) ebeam_max=1.d10
 	    ebeam_min = Mp*edge%e%E%min / (Mp-edge%e%E%min*(1.-vertex%ue%z))
+	    Egamma_min(1) = vertex%Ein - ebeam_max
+	    Egamma_max(1) = vertex%Ein - ebeam_min
+	    Egamma_max(1) = min(Egamma_max(1),edge%Em%max)
+
+	 else if (doing_nuc_elast) then
+	    if (debug(5)) write(6,*)'gen_rad: at 2b'
+	    ebeam_max = targ%M*edge%e%E%max / (targ%M-edge%e%E%max*(1.-vertex%ue%z))
+	    if (ebeam_max.lt.0) ebeam_max=1.d10
+	    ebeam_min = targ%M*edge%e%E%min / (targ%M-edge%e%E%min*(1.-vertex%ue%z))
 	    Egamma_min(1) = vertex%Ein - ebeam_max
 	    Egamma_max(1) = vertex%Ein - ebeam_min
 	    Egamma_max(1) = min(Egamma_max(1),edge%Em%max)
@@ -367,7 +376,7 @@ CDJG	    if (ntail.ne.0) Egamma_min(1) = gen.sumEgen.min - vertex.e.E
 ! ... limit on sum of photon energies, and lower limit if hadron arm does
 ! ... not radiate.  Em_MEAS = Em_VERT+(Egamma1+Egamma2+Egamma3)+/-delta_trec.
 
-	  if (doing_eep) then
+	  if (doing_eep.or.doing_nuc_elast) then
 	    Egamma_max(2) = min(Egamma_max(2),
      >		(edge%Em%max - vertex%Em) - Egamma_used(1) + max_delta_Trec )
 	    if (ntail.ne.0 .or. .not.rad_proton_this_ev)

@@ -243,7 +243,7 @@ c	  ntu(11) = vertex%p%xptar			!mr
 	     ntu(67) = ntup%gamma2(3)
 	     ntu(68) = ntup%gamma2(4)
 	  endif
-	else if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy) then
+	else if (doing_hyd_elast .or. doing_deuterium .or. doing_heavy .or. doing_nuc_elast) then
 	  ntu(34) = corrsing/1000.
 	  ntu(35) = Pm_Heepx/1000.
 	  ntu(36) = Pm_Heepy/1000.
