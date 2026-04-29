@@ -213,6 +213,10 @@ C DJG:
 	   doing_herho = (nint(targ%A).eq.3)
 	   doing_eep=.false.
 
+	else if (doing_nuc_elast) then
+	   Mh=targ%mass_amu*amu
+	   doing_eep=.true.
+	   
 	else		!doing_eep if nothing else set.
 	  Mh=Mp
 	  doing_eep = .true.
@@ -693,6 +697,8 @@ c	   endif
 	    write(6,*) ' ****--------  D(e,e''p)  --------****'
 	  else if (doing_heavy) then
 	    write(6,*) ' ****--------  A(e,e''p)  --------****'
+	  else if (doing_nuc_elast) then
+	    write(6,*) ' ****--------  A(e,e'')  --------****'
 	  else
 	    stop 'I don''t have ANY idea what (e,e''p) we''re doing!!!'
 	  endif
@@ -996,6 +1002,7 @@ c	      stop
 	ierr = regparmdouble('Ebeam',Ebeam,0.0)
 	ierr = regparmdouble('dEbeam',dEbeam,0.0)
 	ierr = regparmdouble('EXPER%charge',EXPER%charge,0.0)
+	ierr = regparmint('doing_nuc_elast',doing_nuc_elast_int,0)
 	ierr = regparmint('doing_kaon',doing_kaon_int,0)
 	ierr = regparmint('which_kaon',which_kaon,0)
 	ierr = regparmint('doing_pion',doing_pion_int,0)
@@ -1143,6 +1150,7 @@ ccc
 	if(doing_semi_int.gt.0) doing_semi=.true.
         if(doing_hplus_int.gt.0) doing_hplus=.true.
 	if(doing_pizero_int.gt.0) doing_pizero=.true.
+	if(doing_nuc_elast_int.gt.0) doing_nuc_elast=.true.
         if(doing_rho_int.gt.0) doing_rho=.true.
         if(doing_decay_int.gt.0) doing_decay=.true.
         if(do_fermi_int.gt.0) do_fermi=.true.

@@ -318,7 +318,7 @@ c	include 'histograms.inc'
 !    conservation after everything else is calculated.
 !
 
-	if (doing_hyd_elast) then
+	if (doing_hyd_elast.or.doing_nuc_elast) then
 	  VERTEXedge%Em%min = 0.0
 	  VERTEXedge%Em%max = 0.0
 	  VERTEXedge%Pm%min = 0.0
@@ -341,7 +341,7 @@ c	include 'histograms.inc'
 	  endif
 	  VERTEXedge%Em%min = E_Fermi
 	  VERTEXedge%Em%max = 1000.	!Need Egamma_tot_max for good limit.
-	else if (doing_hydpi .or. doing_hydkaon .or. doing_hyddelta .or. doing_hydrho) then
+	else if (doing_hydpi .or. doing_nuc_elast .or. doing_hydkaon .or. doing_hyddelta .or. doing_hydrho) then
 	  VERTEXedge%Em%min = 0.0
 	  VERTEXedge%Em%max = 0.0
 	  VERTEXedge%Pm%min = 0.0
@@ -371,7 +371,7 @@ c	include 'histograms.inc'
 ! T_{A-1} (Trec) limits from Mrec and Pm limits, since
 !    E_rec=sqrt(M_rec**2+P_rec**2), and P_rec = -P_m
 
-	if (doing_hyd_elast .or. doing_hydpi .or. doing_hydkaon .or. 
+	if (doing_hyd_elast .or. doing_nuc_elast .or. doing_hydpi .or. doing_hydkaon .or. 
      >        doing_hyddelta .or. doing_hydrho .or. doing_semi) then
 	  VERTEXedge%Mrec%min = 0.0
 	  VERTEXedge%Mrec%max = 0.0
@@ -435,7 +435,7 @@ c	include 'histograms.inc'
 ! ... Primary limits from energy conservation at vertex, seconday limits from
 ! ... spectrometer limits modified by radiation.
 
-	if (doing_hyd_elast) then	!NO generated energies.
+	if (doing_hyd_elast .or. doing_nuc_elast) then	!NO generated energies.
 	  gen%sumEgen%min = 0.0
 	  gen%sumEgen%max = 0.0
 
@@ -471,7 +471,7 @@ c	   gen%sumEgen%min = Ebeam_min - VERTEXedge%Trec%max - VERTEXedge%Trec_struck%
 ! ... E arm GENERATION limits from sumEgen.
 ! ... Not used for doing_hyd_elast, but define for the hardwired histograms.
 
-	if (doing_hyd_elast) then
+	if (doing_hyd_elast .or. doing_nuc_elast) then
 	  gen%e%E%min = edge%e%E%min
 	  gen%e%E%max = edge%e%E%max + Egamma2_max
 	else if (doing_deuterium .or. doing_pion .or. doing_kaon 
@@ -497,7 +497,7 @@ c	   gen%sumEgen%min = Ebeam_min - VERTEXedge%Trec%max - VERTEXedge%Trec_struck%
 ! ... P arm GENERATION limits from sumEgen.  Not used for any case
 ! ... except doing_heavy, but need to define for code that writes out limits.
 
-	if (doing_hyd_elast.or.doing_deuterium.or.doing_pion.or.doing_kaon .or.
+	if (doing_hyd_elast.or.doing_nuc_elast.or.doing_deuterium.or.doing_pion.or.doing_kaon .or.
      >    doing_rho .or. doing_delta) then
 	  gen%p%E%min = edge%p%E%min
 	  gen%p%E%max = edge%p%E%max + Egamma3_max
