@@ -21,7 +21,7 @@ CTP/daVarRpc_xdr.c
 
 # SIMC Output Directories (including symlinks)
 outfiles
-worksim
+/worksim/
 runout
 
 # Locally generated validation and analysis inputs
