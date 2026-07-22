@@ -4,9 +4,12 @@
 # Objects and executable
 *.o
 *.d
+*.mod
 *.so
 *.pcm
 *.root
+*.log
+.DS_Store
 simc
 CTP/O.Linux
 
@@ -20,3 +23,8 @@ CTP/daVarRpc_xdr.c
 outfiles
 worksim
 runout
+
+# Locally generated validation and analysis inputs
+infiles/RP_Simc/
+infiles/smoke*.inp
+infiles/benchmark*.inp
