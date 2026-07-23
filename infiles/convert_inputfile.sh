@@ -1,4 +1,14 @@
 #!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <input-file>" >&2
+  exit 2
+fi
+
+temporary_file=$(mktemp "${TMPDIR:-/tmp}/simc-input.XXXXXX")
+trap 'rm -f "$temporary_file"' EXIT HUP INT TERM
+
 sed -e 's/EXPER.charge/EXPER%charge/;
 s/spec.e.P/spec%e%P/;
 s/spec.e.theta/spec%e%theta/;
@@ -44,5 +54,6 @@ s/spec.p.offset.z/spec%p%offset%z/;
 s/spec.p.offset.xptar/spec%p%offset%xptar/;
 s/spec.p.offset.yptar/spec%p%offset%yptar/;
 s/cuts.Em.min/cuts%Em%min/;
-s/cuts.Em.max/cuts%Em%max/' < $1     > temp.inp
-cp temp.inp $1
+s/cuts.Em.max/cuts%Em%max/' < "$1" > "$temporary_file"
+mv "$temporary_file" "$1"
+trap - EXIT HUP INT TERM

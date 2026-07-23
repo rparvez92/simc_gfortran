@@ -5,6 +5,7 @@
 *.o
 *.d
 *.mod
+*.co
 *.so
 *.pcm
 *.root
@@ -22,9 +23,12 @@ CTP/daVarRpc_xdr.c
 # SIMC Output Directories (including symlinks)
 outfiles
 /worksim/
+/worksim
+util/root_tree/make_root_tree
 runout
 
 # Locally generated validation and analysis inputs
 infiles/RP_Simc/
 infiles/smoke*.inp
 infiles/benchmark*.inp
+/.run_simc_recon.lock/

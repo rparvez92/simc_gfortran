@@ -24,22 +24,36 @@ ifeq ($(MYOS),Linux)
   F77 := gfortran
 endif
 
-#ROOTSYS=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/root/6.30.04-gcc11.4.0
-ROOTSYS=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/root/6.30.06-gcc11.4.0
-CXX=g++
+ifeq ($(MYOS),Darwin)
+  FFLAGS = -O3 -fno-automatic
+  OTHERLIBS =
+  FC  := gfortran
+  F77 := gfortran
+endif
+
+ROOT_CONFIG ?= root-config
+CXX := $(shell $(ROOT_CONFIG) --cxx)
 CXXFLAGS0 = -O3 -std=c++17
 CXXFLAGS=$(CXXFLAGS0) $(DROOT)
-ROOTDIR=$(ROOTSYS)
 DMYROOT= -DMYROOT
-ROOTLIBS     := $(shell $(ROOTDIR)/bin/root-config --prefix=$(ROOTDIR)  --libs)
-ROOTINCLUDE  := -I $(shell $(ROOTDIR)/bin/root-config --prefix=$(ROOTDIR) --incdir)
+ROOTLIBS     := $(shell $(ROOT_CONFIG) --libs)
+ROOTINCLUDE  := -I$(shell $(ROOT_CONFIG) --incdir)
+
+ifeq ($(MYOS),Darwin)
+  LINKER := $(CXX)
+  FORTRAN_LIBDIR := $(dir $(shell $(FC) -print-file-name=libgfortran.dylib))
+  FORTRAN_LIBS := -L$(FORTRAN_LIBDIR) -lgfortran -lquadmath
+else
+  LINKER := $(F77)
+  FORTRAN_LIBS := -lstdc++
+endif
 
 none: make_root_tree
 
 all: make_root_tree
 
 make_root_tree: $(my_objs) froot.co
-	$(F77) $(LDFLAGS) -o make_root_tree $(my_objs) $(OTHERLIBS) froot.co $(ROOTLIBS) -lImt -lvdt -ltbb $(OTHERLIBS) $(CERNLIBS) -L/usr/lib64 -lstdc++
+	$(LINKER) $(LDFLAGS) -o make_root_tree $(my_objs) froot.co $(ROOTLIBS) $(FORTRAN_LIBS) $(OTHERLIBS) $(CERNLIBS)
 
 %.o: %.f
 	$(FC) -c $(FFLAGS) $<
@@ -49,4 +63,3 @@ make_root_tree: $(my_objs) froot.co
 
 clean:
 	$(RM) *.o *.co make_root_tree
-

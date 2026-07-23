@@ -1,184 +1,299 @@
 #!/bin/bash
-# run_simc_recon.sh
-#
-# Automate:
-# 1) Run SIMC (convert input, build, run SIMC)
-# 2) Run recon_hcana on the generated SIMC ROOT/HIST files
+# Run SIMC and recon_hcana while keeping generated products on T7.
 #
 # Usage:
-#   ./run_simc_recon.sh <stem> <reaction> [hadron_type] [Earm_HMS]
+#   ./run_simc_recon.sh <input-relative-to-infiles> <reaction> \
+#       [hadron_type] [Earm_HMS] [--ngen N] [--overwrite]
 #
-# where:
-#   <stem>        = base name of your SIMC input/output (without .inp)
-#   <reaction>    = "heep", "sidis", "rho", "delta", "exclusive", ...
-#   [hadron_type] = "mpi" (default) or "mk". For heep, proton mass is hard-coded
-#   [Earm_HMS]    = 1 (default: electron in HMS) or 0 (electron in SHMS)
-#
-# Example (SIDIS):
-#   ./run_simc_recon.sh coin_7p87deg_3p632gev_hyd_rsidis sidis mpi 1
-#
-# Example (heep with electron in SHMS):
-#   ./run_simc_recon.sh heep_rsidis_4pass_elastic1 heep mpi 0
+# Example:
+#   ./run_simc_recon.sh \
+#     RP_Simc/coin/mc_delta_phase1_pass4_PIMINUS_LD2_x0p25Q23p3z0p5thpq2p0.inp \
+#     delta mpi 1
 
-set -e  # exit on first error
+set -euo pipefail
 
-############################
-# CONFIGURE THESE PATHS
-############################
+usage() {
+  cat <<'EOF'
+Usage: run_simc_recon.sh <input-relative-to-infiles> <reaction> [hadron_type] [Earm_HMS] [--ngen N] [--overwrite]
 
-# Top-level SIMC directory
-SIMC_DIR="$(pwd)"
+  input          Path relative to infiles/; absolute paths and '..' are rejected
+  reaction       heep | sidis | rho | delta | exclusive | ...
+  hadron_type    mpi (default) or mk
+  Earm_HMS       1 (default; electron in HMS) or 0 (electron in SHMS)
+  --ngen N       Override ngen in the staged copy (useful for smoke tests)
+  --overwrite    Permit replacement of an existing T7 output set
 
-# Path to SIMC input files
-SIMC_INFILES_DIR="${SIMC_DIR}/infiles"
+The phase is read from '_phase1_' or '_phase2_' in the input filename. The
+run type is the input's immediate parent directory (for example, coin or heep).
+Set SIMC_T7_ROOT to override /Volumes/T7/RSIDIS.
+EOF
+}
 
-# Path to SIMC ROOT tree util
-SIMC_ROOT_TREE_DIR="${SIMC_DIR}/util/root_tree"
+if [ "$#" -lt 2 ]; then
+  usage >&2
+  exit 2
+fi
 
-# Where SIMC writes .hist files
-SIMC_OUTFILES_DIR="${SIMC_DIR}/outfiles"
+INPUT_REL=$1
+REACTION=$2
+shift 2
+HADRON_TYPE=mpi
+EARM_HMS_INT=1
+OVERWRITE=0
+NGEN_OVERRIDE=
+POSITIONAL_COUNT=0
 
-# Where SIMC writes .root tree files
-SIMC_WORK_DIR="${SIMC_DIR}/worksim"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --overwrite)
+      OVERWRITE=1
+      shift
+      ;;
+    --ngen)
+      if [ "$#" -lt 2 ]; then
+        echo "ERROR: --ngen requires a positive integer." >&2
+        exit 2
+      fi
+      NGEN_OVERRIDE=$2
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "ERROR: unknown option: $1" >&2
+      exit 2
+      ;;
+    *)
+      POSITIONAL_COUNT=$((POSITIONAL_COUNT + 1))
+      case "$POSITIONAL_COUNT" in
+        1) HADRON_TYPE=$1 ;;
+        2) EARM_HMS_INT=$1 ;;
+        *)
+          echo "ERROR: unexpected argument: $1" >&2
+          exit 2
+          ;;
+      esac
+      shift
+      ;;
+  esac
+done
 
-# Directory where recon_hcana.C / recon_hcana.h live
-RECON_DIR="${SIMC_DIR}/util/recon_hcana"
+case "$NGEN_OVERRIDE" in
+  '') ;;
+  *[!0-9]*|0)
+    echo "ERROR: --ngen requires a positive integer, got: $NGEN_OVERRIDE" >&2
+    exit 2
+    ;;
+esac
 
-############################
-# PARSE ARGUMENTS
-############################
+case "$INPUT_REL" in
+  /*|../*|*/../*|*/..|..)
+    echo "ERROR: input must be a safe path relative to infiles/: $INPUT_REL" >&2
+    exit 2
+    ;;
+esac
 
-if [ $# -lt 2 ]; then
-  echo "Usage: $0 <stem> <reaction> [hadron_type] [Earm_HMS]"
-  echo "  <stem>        = SIMC basename (no .inp)"
-  echo "  <reaction>    = heep | sidis | rho | delta | exclusive | ..."
-  echo "  [hadron_type] = mpi (default) or mk"
-  echo "  [Earm_HMS]    = 1 (default: electron in HMS) or 0 (electron in SHMS)"
+case "$EARM_HMS_INT" in
+  0) EARM_FLAG=kFALSE ;;
+  1) EARM_FLAG=kTRUE ;;
+  *)
+    echo "ERROR: Earm_HMS must be 0 or 1, got: $EARM_HMS_INT" >&2
+    exit 2
+    ;;
+esac
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+SIMC_DIR=$SCRIPT_DIR
+SIMC_INFILES_DIR=$SIMC_DIR/infiles
+SIMC_ROOT_TREE_DIR=$SIMC_DIR/util/root_tree
+RECON_DIR=$SIMC_DIR/util/recon_hcana
+T7_ROOT=${SIMC_T7_ROOT:-/Volumes/T7/RSIDIS}
+
+case "$INPUT_REL" in
+  *.inp) ;;
+  *) INPUT_REL=${INPUT_REL}.inp ;;
+esac
+
+INPUT_FILE=$SIMC_INFILES_DIR/$INPUT_REL
+if [ ! -f "$INPUT_FILE" ]; then
+  echo "ERROR: input file not found: $INPUT_FILE" >&2
   exit 1
 fi
 
-STEM="$1"
-REACTION="$2"
-HADRON_TYPE="${3:-mpi}"
-EARM_HMS_INT="${4:-1}"
+INPUT_NAME=${INPUT_REL##*/}
+STEM=${INPUT_NAME%.inp}
+RUN_TYPE=$(basename -- "$(dirname -- "$INPUT_REL")")
+case "$RUN_TYPE" in
+  .|infiles|RP_Simc|''|*[!A-Za-z0-9_-]*)
+    echo "ERROR: cannot infer a safe run type from input path: $INPUT_REL" >&2
+    echo "Place the input below a run-type directory such as RP_Simc/coin/." >&2
+    exit 2
+    ;;
+esac
 
-# Map 1/0 → kTRUE/kFALSE for ROOT
-if [ "$EARM_HMS_INT" -eq 0 ]; then
-  EARM_FLAG="kFALSE"
+case "$INPUT_NAME" in
+  *_phase1_*) PHASE=Phase1 ;;
+  *_phase2_*) PHASE=Phase2 ;;
+  *)
+    echo "ERROR: filename must contain '_phase1_' or '_phase2_': $INPUT_NAME" >&2
+    exit 2
+    ;;
+esac
+
+if [ ! -d "$T7_ROOT" ]; then
+  echo "ERROR: T7 root is unavailable; is the volume mounted? $T7_ROOT" >&2
+  exit 1
+fi
+
+T7_SIM_DIR=$T7_ROOT/$PHASE/Simulation
+T7_OUTFILES_DIR=$T7_SIM_DIR/outfiles/$RUN_TYPE
+T7_RUNOUT_DIR=$T7_SIM_DIR/runout/$RUN_TYPE
+T7_ROOTFILES_DIR=$T7_SIM_DIR/ROOTfiles/$RUN_TYPE
+
+for directory in "$T7_OUTFILES_DIR" "$T7_RUNOUT_DIR" "$T7_ROOTFILES_DIR"; do
+  mkdir -p "$directory"
+  if [ ! -w "$directory" ]; then
+    echo "ERROR: T7 output directory is not writable: $directory" >&2
+    exit 1
+  fi
+done
+
+LOCK_DIR=$SIMC_DIR/.run_simc_recon.lock
+STAGED_INPUT=
+cleanup() {
+  status=$?
+  if [ -n "$STAGED_INPUT" ] && [ -f "$STAGED_INPUT" ]; then
+    rm -f "$STAGED_INPUT"
+  fi
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+  exit "$status"
+}
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "ERROR: another run_simc_recon.sh process is active: $LOCK_DIR" >&2
+  exit 1
+fi
+trap cleanup EXIT HUP INT TERM
+
+for local_name in outfiles runout worksim; do
+  local_path=$SIMC_DIR/$local_name
+  if [ -e "$local_path" ] && [ ! -L "$local_path" ]; then
+    echo "ERROR: refusing to replace non-symlink path: $local_path" >&2
+    exit 1
+  fi
+done
+
+ln -sfn "$T7_OUTFILES_DIR" "$SIMC_DIR/outfiles"
+ln -sfn "$T7_RUNOUT_DIR" "$SIMC_DIR/runout"
+ln -sfn "$T7_ROOTFILES_DIR" "$SIMC_DIR/worksim"
+
+for output in \
+  "$T7_OUTFILES_DIR/$STEM.hist" \
+  "$T7_RUNOUT_DIR/$STEM.out" \
+  "$T7_ROOTFILES_DIR/$STEM.root" \
+  "$T7_ROOTFILES_DIR/recon_hcana_$STEM.root"; do
+  if [ -e "$output" ] && [ "$OVERWRITE" -ne 1 ]; then
+    echo "ERROR: output already exists (use --overwrite): $output" >&2
+    exit 1
+  fi
+done
+
+STAGED_INPUT=$SIMC_INFILES_DIR/$INPUT_NAME
+if [ "$INPUT_FILE" != "$STAGED_INPUT" ]; then
+  if [ -e "$STAGED_INPUT" ]; then
+    echo "ERROR: staging input already exists: $STAGED_INPUT" >&2
+    exit 1
+  fi
+  cp "$INPUT_FILE" "$STAGED_INPUT"
 else
-  EARM_FLAG="kTRUE"
+  STAGED_INPUT=
 fi
 
-echo "========================================="
-echo " Running SIMC + recon_hcana"
-echo "-----------------------------------------"
-echo "  STEM        = ${STEM}"
-echo "  REACTION    = ${REACTION}"
-echo "  HADRON_TYPE = ${HADRON_TYPE}"
-echo "  Earm_HMS    = ${EARM_FLAG}  (1=HMS, 0=SHMS)"
-echo "========================================="
+printf '%s\n' \
+  "=========================================" \
+  " Running SIMC + recon_hcana" \
+  " Input:       $INPUT_REL" \
+  " Phase:       $PHASE" \
+  " Run type:    $RUN_TYPE" \
+  " Reaction:    $REACTION" \
+  " Hadron type: $HADRON_TYPE" \
+  " Earm_HMS:    $EARM_FLAG" \
+  " ngen:        ${NGEN_OVERRIDE:-input default}" \
+  " T7 output:   $T7_SIM_DIR" \
+  "========================================="
 
-############################
-# 0. CHECK INPUT .INP FILE
-############################
+echo ">>> [1/4] Converting staged SIMC input"
+(
+  cd "$SIMC_INFILES_DIR"
+  ./convert_inputfile.sh "$INPUT_NAME"
+)
 
-INP_FILE="${SIMC_INFILES_DIR}/${STEM}.inp"
+if [ -n "$NGEN_OVERRIDE" ]; then
+  override_file=$(mktemp "${TMPDIR:-/tmp}/simc-ngen.XXXXXX")
+  if ! awk -v ngen="$NGEN_OVERRIDE" '
+    BEGIN { changed = 0 }
+    !changed && $0 ~ /^[[:space:]]*ngen[[:space:]]*=/ {
+      sub(/[0-9]+/, ngen)
+      changed = 1
+    }
+    { print }
+    END { if (!changed) exit 3 }
+  ' "$SIMC_INFILES_DIR/$INPUT_NAME" > "$override_file"; then
+    rm -f "$override_file"
+    echo "ERROR: could not override ngen in staged input." >&2
+    exit 1
+  fi
+  mv "$override_file" "$SIMC_INFILES_DIR/$INPUT_NAME"
+fi
 
-if [ ! -f "${INP_FILE}" ]; then
-  echo "ERROR: Input file not found: ${INP_FILE}"
-  echo "Please create/write ${STEM}.inp in ${SIMC_INFILES_DIR} first."
+echo ">>> [2/4] Building SIMC ROOT tree"
+(
+  cd "$SIMC_ROOT_TREE_DIR"
+  make clean
+  make
+)
+
+echo ">>> [3/4] Running SIMC"
+(
+  cd "$SIMC_DIR"
+  ./run_simc_tree "$STEM"
+)
+
+HIST_FILE=$T7_OUTFILES_DIR/$STEM.hist
+ROOT_FILE=$T7_ROOTFILES_DIR/$STEM.root
+if [ ! -f "$HIST_FILE" ] || [ ! -f "$ROOT_FILE" ]; then
+  echo "ERROR: SIMC did not create the expected .hist and .root files." >&2
   exit 1
 fi
 
-############################
-# 1. convert_inputfile.sh
-############################
+echo ">>> [4/4] Running recon_hcana"
+RECON_FILE=$T7_ROOTFILES_DIR/recon_hcana_$STEM.root
+set +e
+(
+  cd "$RECON_DIR"
+  root -l -b -q "recon_hcana.C+(\"$STEM\",\"$REACTION\",\"$HADRON_TYPE\",$EARM_FLAG)"
+)
+RECON_STATUS=$?
+set -e
 
-echo
-echo ">>> [1] Converting SIMC input file"
-cd "${SIMC_INFILES_DIR}"
-
-if [ ! -x "./convert_inputfile.sh" ]; then
-  echo "ERROR: convert_inputfiles.sh not found or not executable in ${SIMC_INFILES_DIR}"
+if [ ! -f "$RECON_FILE" ]; then
+  echo "ERROR: recon_hcana output not found: $RECON_FILE" >&2
   exit 1
 fi
-
-./convert_inputfile.sh "${STEM}.inp"
-
-############################
-# 2. Build ROOT tree code
-############################
-
-echo
-echo ">>> [2] Building SIMC ROOT tree (make clean; make)"
-cd "${SIMC_ROOT_TREE_DIR}"
-
-make clean
-make
-
-############################
-# 3. Run SIMC to make .hist/.root
-############################
-
-echo
-echo ">>> [3] Running SIMC (./run_simc_tree ${STEM})"
-cd "${SIMC_DIR}"
-
-if [ ! -x "./run_simc_tree" ]; then
-  echo "ERROR: run_simc_tree not found or not executable in ${SIMC_DIR}"
+if ! rootls -1 "$RECON_FILE" 2>/dev/null | grep -qx h10; then
+  echo "ERROR: recon_hcana output does not contain a readable h10 tree: $RECON_FILE" >&2
   exit 1
 fi
-
-./run_simc_tree "${STEM}"
-
-# Expect .hist and .root now:
-HIST_FILE="${SIMC_OUTFILES_DIR}/${STEM}.hist"
-ROOT_FILE="${SIMC_WORK_DIR}/${STEM}.root"
-
-echo
-echo "Checking SIMC outputs:"
-echo "  HIST: ${HIST_FILE}"
-echo "  ROOT: ${ROOT_FILE}"
-
-if [ ! -f "${HIST_FILE}" ]; then
-  echo "ERROR: SIMC .hist file not found: ${HIST_FILE}"
-  exit 1
+if [ "$RECON_STATUS" -ne 0 ]; then
+  echo "WARNING: recon_hcana exited with status $RECON_STATUS after writing a valid h10 tree." >&2
 fi
 
-if [ ! -f "${ROOT_FILE}" ]; then
-  echo "ERROR: SIMC .root file not found: ${ROOT_FILE}"
-  exit 1
-fi
-
-############################
-# 4. Run recon_hcana
-############################
-
-echo
-echo ">>> [4] Running recon_hcana"
-
-cd "${RECON_DIR}"
-
-# Make sure recon_hcana.C is visible
-if [ ! -f "recon_hcana.C" ]; then
-  echo "ERROR: recon_hcana.C not found in ${RECON_DIR}"
-  exit 1
-fi
-
-root -l -b -q "recon_hcana.C+(\"${STEM}\",\"${REACTION}\",\"${HADRON_TYPE}\",${EARM_FLAG})"
-
-RETVAL=$?
-
-if [ ${RETVAL} -ne 0 ]; then
-  echo "ERROR: recon_hcana.C failed with exit code ${RETVAL}"
-  exit ${RETVAL}
-fi
-
-echo
-echo "================================================================="
-echo " All done!"
-echo " - SIMC input:    ${INP_FILE}"
-echo " - SIMC ROOT:     ${ROOT_FILE}"
-echo " - SIMC HIST:     ${HIST_FILE}"
-echo " - recon_hcana output: ${SIMC_WORK_DIR}/recon_hcana_${STEM}.root"
-echo "================================================================="
+printf '%s\n' \
+  "Run completed successfully:" \
+  "  SIMC input:       $INPUT_FILE" \
+  "  SIMC histogram:   $HIST_FILE" \
+  "  SIMC ROOT file:   $ROOT_FILE" \
+  "  recon_hcana ROOT: $RECON_FILE" \
+  "  run log:          $T7_RUNOUT_DIR/$STEM.out"
