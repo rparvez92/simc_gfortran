@@ -270,13 +270,10 @@ fi
 
 echo ">>> [4/4] Running recon_hcana"
 RECON_FILE=$T7_ROOTFILES_DIR/recon_hcana_$STEM.root
-set +e
 (
   cd "$RECON_DIR"
-  root -l -b -q "recon_hcana.C+(\"$STEM\",\"$REACTION\",\"$HADRON_TYPE\",$EARM_FLAG)"
+  root -l -b -q "run_recon_hcana.C+(\"$STEM\",\"$REACTION\",\"$HADRON_TYPE\",$EARM_FLAG)"
 )
-RECON_STATUS=$?
-set -e
 
 if [ ! -f "$RECON_FILE" ]; then
   echo "ERROR: recon_hcana output not found: $RECON_FILE" >&2
@@ -285,9 +282,6 @@ fi
 if ! rootls -1 "$RECON_FILE" 2>/dev/null | grep -qx h10; then
   echo "ERROR: recon_hcana output does not contain a readable h10 tree: $RECON_FILE" >&2
   exit 1
-fi
-if [ "$RECON_STATUS" -ne 0 ]; then
-  echo "WARNING: recon_hcana exited with status $RECON_STATUS after writing a valid h10 tree." >&2
 fi
 
 printf '%s\n' \
