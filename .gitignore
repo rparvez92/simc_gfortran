@@ -32,3 +32,6 @@ infiles/RP_Simc/
 infiles/smoke*.inp
 infiles/benchmark*.inp
 /.run_simc_recon.lock/
+
+# Unnamed Fortran unit diagnostic produced by rho_physics.f
+/fort.222
