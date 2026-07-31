@@ -25,6 +25,7 @@ outfiles
 /worksim/
 /worksim
 util/root_tree/make_root_tree
+util/sidisxsec/calc_semi_xsec
 runout
 
 # Locally generated validation and analysis inputs

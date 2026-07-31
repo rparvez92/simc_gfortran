@@ -59,14 +59,14 @@ endif
 # with the default integer size, specifically in mt19937.f.
 # Note that the CTP libraries still end up in the O.Linux directory...
 ifeq ($(MYOS),Darwin)
-  LIBROOT = CTP/O.Linux/Linux/lib
-  CERN_ROOT = /apps/cernlib/i386_fc8/2005
   FFLAGSA=-O -W -ffixed-line-length-132 -ff2c -fno-automatic -fdefault-real-8
-  INCLUDES=-I.
+  INCLUDES=-I$(simcdir)
   FFLAGS= $(INCLUDES) $(FFLAGSA)
   FFLAG1=$(FFLAGS) -c
-  OTHERLIBS = -L$(LIBROOT) -lctp \
-        -L$(CERN_ROOT)/lib $(CERNLIBS) -L/usr/lib
+  # The standalone SIDIS calculator only needs the SIMC objects listed in its
+  # link rule.  Legacy CERNLIB/CTP paths made the utility unbuildable on modern
+  # macOS installations even though no symbols from those libraries are used.
+  OTHERLIBS =
   FC  := gfortran
   F77 := gfortran
 endif
@@ -106,5 +106,4 @@ structures_init.inc: structures.inc
 
 
 clean:
-	$(RM) *.[od] $(H)*.[od] $(S)*.[od] $(L)*.[od] $(R)*.[od] $(SH)*.[od] $(A)*.[od] $(T)*.[od] $(C)*.[od] $(CH)*.[od] *.mod simc
-
+	$(RM) *.[od] $(H)*.[od] $(S)*.[od] $(L)*.[od] $(R)*.[od] $(SH)*.[od] $(A)*.[od] $(T)*.[od] $(C)*.[od] $(CH)*.[od] *.mod calc_semi_xsec
