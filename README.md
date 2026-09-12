@@ -67,5 +67,10 @@ Meeting](http://hallaweb.jlab.org/collab/meeting/2009-winter/talks/Analysis%20Wo
 Documentation
 -------------
 
+For a source-grounded derivation of SIMC yield normalization, including
+`Ngen`, `Ntried`, `Weight`, `normfac`, and a worked SIDIS example, see
+[the rendered SIMC yield physics tutorial](SIMC_YIELD_PHYSICS_TUTORIAL.pdf)
+or its [editable Markdown source](SIMC_YIELD_PHYSICS_TUTORIAL.md).
+
 For more information, see the [SIMC Monte Carlo page in the Hall C
 Wiki](https://hallcweb.jlab.org/wiki/index.php/SIMC_Monte_Carlo)
