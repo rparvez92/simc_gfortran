@@ -603,8 +603,10 @@ c	   endif
 	    tmpfile='benharsf_4.dat'
 	  else if (nint(targ%A).eq.12) then
 	    tmpfile='benharsf_12.dat'
-	  else if (nint(targ%A).eq.56) then
+	  else if (nint(targ%A).eq.56) then  
 	    tmpfile='benharsf_56.dat'
+	  else if (nint(targ%A).eq.64) then
+            tmpfile='benharsf_64.dat'
 	  else if (nint(targ%A).eq.197) then
 	    tmpfile='benharsf_197.dat'
 	  else
@@ -827,7 +829,7 @@ c	   endif
 	 else if (which_pion.eq.10 .or. which_pion.eq.11) then
 	    write(6,*) ' ****----  Coherent Production ----****'
 	 else if (which_pion.eq.2 .or. which_pion.eq.3) then
-	    if(doing_hydpi .and. which_pion.eq.3) then
+	    if(doing_hydpi .and. which_pion.eq.3 .and. doing_pizero) then
 	       stop 'Can''t do Delta+ production from neutron for pi0'
 	    endif
 	    write(6,*) ' ****---- Quasifree Production - Delta final state ----****'

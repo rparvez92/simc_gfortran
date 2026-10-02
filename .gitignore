@@ -20,3 +20,6 @@ CTP/daVarRpc_xdr.c
 outfiles
 worksim
 runout
+
+# Generated Fortran module files
+*.mod
