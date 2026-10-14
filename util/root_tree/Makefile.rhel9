@@ -24,14 +24,13 @@ ifeq ($(MYOS),Linux)
   F77 := gfortran
 endif
 
-ROOTSYS=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/root/6.30.04-gcc11.4.0
 CXX=g++
-CXXFLAGS0 = -O3 -std=c++17
+CXXFLAGS0 = -O3 -std=c++20
 CXXFLAGS=$(CXXFLAGS0) $(DROOT)
-ROOTDIR=$(ROOTSYS)
+ROOT_CONFIG ?= root-config
 DMYROOT= -DMYROOT
-ROOTLIBS     := $(shell $(ROOTDIR)/bin/root-config --prefix=$(ROOTDIR)  --libs)
-ROOTINCLUDE  := -I $(shell $(ROOTDIR)/bin/root-config --prefix=$(ROOTDIR) --incdir)
+ROOTLIBS     := $(shell $(ROOT_CONFIG) --libs)
+ROOTINCLUDE  := -I$(shell $(ROOT_CONFIG) --incdir)
 
 none: make_root_tree
 
@@ -48,4 +47,3 @@ make_root_tree: $(my_objs) froot.co
 
 clean:
 	$(RM) *.o *.co make_root_tree
-

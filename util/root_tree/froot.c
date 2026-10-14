@@ -112,7 +112,7 @@ void initrootnt_(const char *title, const char *access, int ltitle, int laccess)
 //                             If no file exists, it is created.
 //           = 'READ'          open an existing file for reading (default).
 {
-  char *appName="FROOT.C";
+  char appName[]="FROOT.C";
   int apprgc=1; 
   char *appargv[]={appName};
   app=new TApplication("App", &apprgc, appargv);
@@ -211,4 +211,3 @@ void printnt_()
  void rootntoutp_(){return;}
 
 #endif //MYROOT
-

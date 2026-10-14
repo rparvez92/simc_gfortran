@@ -1,0 +1,8 @@
+process,reaction,charge,doing_pion,doing_rho,doing_semi,which_pion,doing_hplus,primary_selector
+SIDIS Pi plus,sidis,pip,1,0,1,0,1,doing_semi=1 and doing_hplus=1
+SIDIS Pi minus,sidis,pim,1,0,1,0,0,doing_semi=1 and doing_hplus=0
+Rho to detected Pi plus,rho,pip,0,1,0,0,1,doing_rho=1 and doing_hplus=1
+Rho to detected Pi minus,rho,pim,0,1,0,0,0,doing_rho=1 and doing_hplus=0
+Exclusive Pi plus,exclusive,pip,1,0,0,0,1,which_pion=0 and doing_hplus=1
+Pi plus Delta final state,delta,pip,1,0,0,2,1,which_pion=2 and doing_hplus=1
+Pi minus Delta final state,delta,pim,1,0,0,3,0,which_pion=3 and doing_hplus=0
